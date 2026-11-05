@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Computer Hub · Front Desk</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <h1>Computer Hub <span>Front Desk</span></h1>
+  <p class="stats">
+    Today: <b>{{ report.sessions }}</b> sessions ·
+    <b>{{ report.unique_visitors }}</b> visitors ·
+    avg <b>{{ report.average_minutes }}</b> min
+  </p>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}<p class="flash {{ cat }}">{{ msg }}</p>{% endfor %}
+{% endwith %}
+
+<main>
+  <section>
+    <h2>Stations</h2>
+    <ul class="board">
+      {% for s in stations %}
+      <li class="station {{ s.status }}">
+        <strong>{{ s.label }}</strong>
+        <small>{{ s.kind }}</small>
+        {% if s.status == 'in_use' %}
+          <span>{{ s.visitor }} · {{ s.minutes }} min</span>
+          <form method="post" action="{{ url_for('web.check_out', station_id=s.id) }}">
+            <button>Check out</button>
+          </form>
+        {% elif s.status == 'reserved' %}
+          <span>Reserved until {{ s.until[11:16] }}</span>
+        {% else %}
+          <span>{{ s.status.replace('_', ' ') }}</span>
+        {% endif %}
+      </li>
+      {% else %}
+      <li>No stations yet. Run <code>flask --app hub seed</code>.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section>
+    <h2>Check in</h2>
+    <form method="get" class="row">
+      <input name="q" value="{{ q }}" placeholder="Search visitor by name or email">
+      <button>Search</button>
+    </form>
+
+    {% if q %}
+      {% if matches %}
+      <form method="post" action="{{ url_for('web.check_in') }}" class="stack">
+        <label>Visitor
+          <select name="visitor_id">
+            {% for v in matches %}<option value="{{ v.id }}">{{ v.full_name }}{% if v.email %} ({{ v.email }}){% endif %}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Station
+          <select name="station_id">
+            {% for s in stations if s.status == 'free' %}<option value="{{ s.id }}">{{ s.label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Purpose
+          <select name="purpose">
+            <option value="">—</option>
+            <option>job search</option><option>schoolwork</option>
+            <option>digital literacy class</option><option>printing</option><option>other</option>
+          </select>
+        </label>
+        <button>Check in</button>
+      </form>
+      {% else %}
+      <p>No match for “{{ q }}”. Register them:</p>
+      {% endif %}
+    {% endif %}
+
+    <details {% if q and not matches %}open{% endif %}>
+      <summary>Register new visitor</summary>
+      <form method="post" action="{{ url_for('web.new_visitor') }}" class="stack">
+        <label>Full name <input name="full_name" required value="{{ q if not matches else '' }}"></label>
+        <label>Email <input name="email" type="email"></label>
+        <label>Phone <input name="phone"></label>
+        <button>Register</button>
+      </form>
+    </details>
+  </section>
+</main>
+</body>
+</html>
